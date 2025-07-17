@@ -2,9 +2,11 @@
 
 
 #include "WaterTank.h"
+#include <cmath>
+#include <iostream>
 
-FVector Position;
-float Velocity = 0.0f;
+FVector* Positions;
+float* Velocities;
 float Acceleration = -0.1f;
 
 // Sets default values
@@ -30,34 +32,43 @@ void AWaterTank::BeginPlay()
 	if (BallMesh)
 	{
 		//debug text "here"
-
-		
-		Acceleration = -0.1f;
-		BallInstances->SetStaticMesh(BallMesh);
-
-		// Spawn one ball at the actor's center
-		FTransform BallTransform;
-
-		FVector ParentScale = TankMesh->GetComponentScale();
-		FVector desiredScale = FVector(0.1f);
-		BallTransform.SetScale3D(desiredScale / ParentScale );
-		Position = FVector(0.0);
-		BallTransform.SetLocation(Position);
-		BallInstances->AddInstance(BallTransform);
-
 		float BallWidth = BallMesh->GetBoundingBox().GetSize().X / 50.0f;
 
-		// Spawn one ball at the actor's center
-		BallTransform.SetLocation(GetActorRightVector() * BallWidth);
-		BallInstances->AddInstance(BallTransform);
+		int numCols = std::ceil(std::sqrt(numBalls)); // Calculate number of columns based on the square root of numBalls
+		int numRows = std::ceil(static_cast<double>(numBalls) / static_cast<double>(numCols));
 
-		BallTransform.SetLocation(-GetActorRightVector() * BallWidth);
-		BallInstances->AddInstance(BallTransform);
+		Positions = new FVector[numBalls];
+		Velocities = new float[numBalls];
 
-		FVector MeshSize = TankMesh->GetStaticMesh()->GetBoundingBox().GetSize();
-		FVector MeshSize2 = BallMesh->GetBounds().GetBox().GetSize();
-		FString HeightString = FString::Printf(TEXT("Tank Height: %.2f , %.2f"), MeshSize.Z / 2.0f, (MeshSize2.Z * (desiredScale.Z / ParentScale.Z) / 2.0f ));
-		DrawDebugString(GetWorld(), GetActorLocation(), HeightString, nullptr, FColor::Red, 5.0f, true);
+		BallInstances->SetStaticMesh(BallMesh);
+
+		FTransform BallTransform;
+		FVector ParentScale = TankMesh->GetComponentScale();
+		FVector desiredScale = FVector(0.1f);
+		BallTransform.SetScale3D(desiredScale / ParentScale);
+		
+
+
+
+		int b = 0;
+
+		
+		for (int j = (-numRows / 2); j < numRows - (numRows / 2); j++)
+		{
+			for (int i = (-numCols / 2); i < numCols - (numCols / 2); i++)
+			{
+				Positions[b] = (-GetActorRightVector() * i * BallWidth) + (GetActorUpVector() * j * BallWidth);
+				Velocities[b] = 0.0;
+				BallTransform.SetLocation(Positions[b]);
+				BallInstances->AddInstance(BallTransform);
+				b++;
+				if (b == numBalls)
+					break;
+			}
+			
+		}
+
+		Acceleration = -0.1f;
 	}
 	
 }
@@ -69,18 +80,24 @@ void AWaterTank::Tick(float DeltaTime)
 
 	FTransform BallTransform;
 	BallInstances->GetInstanceTransform(0, BallTransform, /*bWorldSpace=*/false);
-	Velocity += Acceleration;
-	Position.Z  += Velocity; // Move down by 1 unit
-	if (abs(Position.Z) > 46.8f)
+
+	for (int i = 0; i < numBalls; i++)
 	{
-		Position.Z -= Velocity;
-		Velocity *= -0.8;
+		Velocities[i] += Acceleration;
+		Positions[i].Z += Velocities[i];
+		if (abs(Positions[i].Z) > 46.8f)
+		{
+			Positions[i].Z -= Velocities[i];
+			Velocities[i] *= -0.8; // multiply by -1 * decayFactor
 
+		}
+		BallTransform.SetLocation(Positions[i]);
+
+		BallInstances->UpdateInstanceTransform(i, BallTransform, /*bWorldSpace=*/false, /*bMarkRenderStateDirty=*/true, /*bTeleport=*/false);
 	}
-		
-	BallTransform.SetLocation(Position);
 
-	BallInstances->UpdateInstanceTransform(0, BallTransform, /*bWorldSpace=*/false, /*bMarkRenderStateDirty=*/true, /*bTeleport=*/false);
+		
+	
 
 }
 
