@@ -36,4 +36,7 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Water Simulation")
 	UStaticMeshComponent* TankMesh;
 
+	UPROPERTY(EditAnywhere, Category = "Water Simulation")
+	int numBalls = 0.0;
+
 };
